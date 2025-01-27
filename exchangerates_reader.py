@@ -4,71 +4,16 @@ Completed on Wed Jul 14 12:54:47 2021
 
 @author: Berk Acunaş
 """
-
-"""
-Database
-########
-sqlite view example:
-
-CREATE VIEW view_us_dollar
-AS
-SELECT
-	c.date,
-	c.time,
-	c.forex_buying,
-	c.forex_selling,
-	c.banknote_buying,
-	c.banknote_selling
-FROM
-	Currency as c
-WHERE
-	currency = 'USD'
-
-USD	US DOLLAR
-AUD	AUSTRALIAN DOLLAR
-DKK	DANISH KRONE
-EUR	EURO
-GBP	POUND STERLING
-CHF	SWISS FRANK
-SEK	SWEDISH KRONA
-CAD	CANADIAN DOLLAR
-KWD	KUWAITI DINAR
-NOK	NORWEGIAN KRONE
-SAR	SAUDI RIYAL
-JPY	JAPENESE YEN
-BGN	BULGARIAN LEV
-RON	NEW LEU
-RUB	RUSSIAN ROUBLE
-IRR	IRANIAN RIAL
-CNY	CHINESE RENMINBI
-PKR	PAKISTANI RUPEE
-QAR	QATARI RIAL
-KRW	SOUTH KOREAN WON
-AZN	AZERBAIJANI NEW MANAT
-AED	UNITED ARAB EMIRATES DIRHAM
-XDR	SPECIAL DRAWING RIGHT (SDR)
-
-date
-time
-forex_buying
-forex_selling
-banknote_buying
-banknote_selling
-
-"""
 import os
 from datetime import datetime
 
-# importing the required modules
 import csv
 import requests
 import xml.etree.ElementTree as elemTree
 
-# database
 import sqlite3
-import mysql.connector
 
-home_dir = os.path.expanduser("~")
+home_dir = r'C://berk' # os.path.expanduser("~")
 print(f'Home Directory is: {home_dir}')
 
 documents_dir = f'{home_dir}/Documents'
@@ -106,26 +51,9 @@ tags_dict = {
     'CrossRateOther': 8
 }
 
-
 def error_message(func_name, error):
 
     return f'Exception at function: {func_name}\nError message: {error}'
-
-
-def createMySQLConnection(databaseName):
-
-    conn = None
-
-    try:
-        conn = mysql.connector.connect(user = 'root', 
-                                    password = '', 
-                                    host = '127.0.0.1', 
-                                    database = databaseName)
-    except Exception as error:
-        print(f'createMySQLConnection() => {error}')
-    
-    return conn
-
 
 def fetch_xml_from_webservice():
 
@@ -150,18 +78,12 @@ def parse_xml(xml_filename):
 
     try:
 
-        # create element tree object
         tree = elemTree.parse(xml_filename)
-
-        # get root element
         root = tree.getroot()
 
-        # empty list exchange rates dictionaries
         exchange_rates_items = []
-
         for child in root:
 
-            # empty exchange rates dictionary
             exchange_rates = {
                 'date': CURRENT_DATE.strftime('%Y.%m.%d'),
                 'time': CURRENT_TIME.strftime('%H:%M.%S'),
@@ -176,10 +98,8 @@ def parse_xml(xml_filename):
             }
 
             print(exchange_rates)
-
             exchange_rates_items.append(exchange_rates)
 
-        # return exchange rates items list
         return exchange_rates_items
     
     except Exception as error:
@@ -189,23 +109,15 @@ def parse_xml(xml_filename):
 def save_to_csv(exchange_rates_items):
 
     try:
-
         # specifying the fields for csv file
         fields = ['currency', 'currency_name', 'forex_buying', 'forex_selling',
                 'banknote_buying', 'banknote_selling', 'crossrate_usd', 'crossrate_other', 'date', 'time']
 
         csv_filename = os.path.join(CSV_DIR, f'{FILENAME_WITHOUT_EXT}.csv')
 
-        # writing to csv file
         with open(csv_filename, 'w') as csvfile:
-
-            # creating a csv dict writer object
             writer = csv.DictWriter(csvfile, fieldnames=fields)
-
-            # writing headers (field names)
             writer.writeheader()
-
-            # writing data rows
             writer.writerows(exchange_rates_items)
 
     except Exception as error:
@@ -250,46 +162,6 @@ def insert_into_sqlite(exchange_rates_items):
         conn.close()
 
 
-def insert_into_mysql(exchange_rates_items, database_name):
-
-    try:
-        conn = createMySQLConnection(database_name)
-        cur = conn.cursor()
-
-        for item in exchange_rates_items:
-
-            today = f'{item["date"]} {item["time"]}'
-            today = datetime.strptime(today, '%Y.%m.%d %H:%M.%S')
-
-            currency_id = item['currency']
-            currency_name = item['currency_name']
-            forex_buying = item['forex_buying']
-            forex_selling = item['forex_selling']
-            banknote_buying = item['banknote_buying']
-            banknote_selling = item['banknote_selling']
-            crossrate_usd = item['crossrate_usd']
-            crossrate_other = item['crossrate_other']
-
-            # qmark style:
-            sql = '''INSERT INTO 
-                        Currency(currency_id, currency_name, forex_buying, forex_selling, banknote_buying, banknote_selling, crossrate_usd, crossrate_other, today) 
-                     VALUES
-                     (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                  '''
-
-            cur.execute(sql, (currency_id, currency_name, forex_buying, forex_selling, banknote_buying, banknote_selling, crossrate_usd, crossrate_other, today, ))
-
-        cur.close()
-
-        conn.commit()
-
-    except Exception as error:
-        print(error_message('insert_into_mysql', error))
-        log_dict['MYSQL ERROR'] = error
-
-    finally:
-        conn.close()
-
 def create_log_text(operation):
 
     text = ''
@@ -325,31 +197,16 @@ def log_file():
         print(error)
 
 
-
 def main():
 
     try:
         xml_filename = fetch_xml_from_webservice()
         exchange_rates_items = parse_xml(xml_filename)
-    except:
-        pass
-
-    try:
         insert_into_sqlite(exchange_rates_items)
-    except:
-        pass
-
-    try:
-        pass
-        # insert_into_mysql(exchange_rates_items, 'exchangerates')
-    except:
-        pass
-
-    try:
         save_to_csv(exchange_rates_items)
     except:
         pass
-    
+
     log_file()
 
 
